@@ -50,7 +50,7 @@ CREATE TABLE Solicitud (
     EstadoSolicitud ENUM('APROBADA', 'RECHAZADA', 'CANCELADA', 'EN REVISION') DEFAULT 'EN REVISION',
     CuotaInicial DECIMAL(10,2) CHECK (CuotaInicial >= 0),
     IdCliente INT NOT NULL,
-    CONSTRAINT fk_IdCliente FOREIGN KEY (IdCliente) REFERENCES Cliente(IdCliente)
+    CONSTRAINT fk_IdClienteSolicitud FOREIGN KEY (IdCliente) REFERENCES Cliente(IdCliente)
     -- estado de solicitud debe ser aprobado para que la cuota inicial sea not null
 );
 
@@ -88,8 +88,8 @@ CREATE TABLE AsignacionServicio (
     Cantidad INT NOT NULL CHECK (Cantidad > 0),
     Subtotal DECIMAL(10,2) NOT NULL CHECK (Subtotal> 0), -- derivado de cantidad*preciounitario
     PrecioUnitario DECIMAL(10,2) NOT NULL CHECK (PrecioUnitario> 0),
-    CONSTRAINT fk_CodigoSolicitud FOREIGN KEY (CodigoSolicitud) REFERENCES Solicitud(CodigoSolicitud),
-    CONSTRAINT fk_CodigoServicio FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
+    CONSTRAINT fk_CodigoSolicitudAsociada FOREIGN KEY (CodigoSolicitud) REFERENCES Solicitud(CodigoSolicitud),
+    CONSTRAINT fk_CodigoServicioAsignado FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
 );
 
 -- Tabla ValidacionInterna
@@ -99,7 +99,7 @@ CREATE TABLE ValidacionInterna (
     EstadoValidacionContabilidad ENUM('APROBADO', 'RECHAZADO'),
     FechaRevision DATE NOT NULL,
     NumeroIntento INT,
-    Observaciones TEXT DEFAULT "NINGUNA",
+    Observaciones TEXT,
     CodigoEncargadoSistemas INT,
     CodigoEncargadoContabilidad INT,
     CONSTRAINT fk_CodigoEncargadoSistemas FOREIGN KEY (CodigoEncargadoSistemas) REFERENCES Encargado(CodigoEncargado),
@@ -145,7 +145,7 @@ CREATE TABLE Insumos (
     CodigoServicio INT,
     Nombre VARCHAR(50) NOT NULL CHECK (Nombre <> ''),
     PRIMARY KEY (IdInsumo, CodigoServicio),
-    CONSTRAINT fk_CodigoServicio FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
+    CONSTRAINT fk_CodigoServicioAsociado FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
 );
 
 -- Creacion de indices para mejorar el rendimiento
