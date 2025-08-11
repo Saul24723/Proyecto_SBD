@@ -68,7 +68,7 @@ CREATE TABLE ServicioFunerario (
     CodigoServicio INT PRIMARY KEY,
     TipoServicio ENUM('CREMACION','TRASLADO','INHUMACION') NOT NULL,
     UbicacionPrestacion VARCHAR(150) NOT NULL,
-    CONSTRAINT fk_CodigoServicio FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
+    CONSTRAINT fk_CodigoServicio_Funerario FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio),
 );
 
 -- Tabla ProductoServicio
@@ -77,7 +77,7 @@ CREATE TABLE ProductoServicio (
     LugarEntregaProducto VARCHAR(150) NOT NULL,
     Material VARCHAR(20) NOT NULL,
     TipoProducto ENUM('COFRE','ARREGLOS_FLORALES','CENIZARIO','LOTE','UNIDAD_FAMILIAR','BOVEDA','OSARIO') NOT NULL,
-    FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
+    CONSTRAINT fk_CodigoServicio_Producto FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
 );
 
 -- Tabla AsignacionServicio
@@ -145,7 +145,7 @@ CREATE TABLE Insumos (
     CodigoServicio INT,
     Nombre VARCHAR(50) NOT NULL CHECK (Nombre <> ''),
     PRIMARY KEY (IdInsumo, CodigoServicio),
-    CONSTRAINT fk_CodigoServicioAsociado FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
+    CONSTRAINT fk_CodigoServicioFunerario FOREIGN KEY (CodigoServicio) REFERENCES ServicioFunerario(CodigoServicio)
 );
 
 -- Creacion de indices para mejorar el rendimiento
