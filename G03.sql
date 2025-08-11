@@ -1,3 +1,4 @@
+-- SCRIPT DE IMPLEMENTACIÓN DE BASE DE DATOS G03
 
 DROP DATABASE IF EXISTS G03;
 CREATE DATABASE G03;
@@ -7,35 +8,36 @@ SET NAMES utf8mb4;
 SET sql_mode = 'STRICT_ALL_TABLES';
 
 -- Creacion de Tablas 
+
 -- Tabla Cliente
 CREATE TABLE Cliente (
     IdCliente INT PRIMARY KEY AUTO_INCREMENT,
     Nombres VARCHAR(20) NOT NULL,
     Apellidos VARCHAR(20) NOT NULL,
-    RUC_CI VARCHAR(13) UNIQUE NOT NULL,
+    RUC_CI VARCHAR(13) UNIQUE NOT NULL CHECK (CHAR_LENGTH(RUC_CI) = 10 OR CHAR_LENGTH(RUC_CI) = 13),
     FechaNacimiento DATE,
     Genero ENUM('MASCULINO', 'FEMENINO') NOT NULL,
-    EstadoCivil ENUM('SOLTERO', 'CASADO', 'DIVORCIADO', 'VIUDO') NOT NULL,
+    EstadoCivil ENUM('SOLTERO', 'CASADO', 'DIVORCIADO', 'VIUDO'),
     Direccion VARCHAR(150),
-    CorreoElectronico VARCHAR(100)
+    CorreoElectronico VARCHAR(100) NOT NULL
 );
 
 -- Tabla TelefonoCliente
 CREATE TABLE TelefonoCliente (
     IdCliente INT,
-    NumeroTelefono VARCHAR(13),
+    NumeroTelefono VARCHAR(13) CHECK (CHAR_LENGTH(NumeroTelefono) = 10),
     PRIMARY KEY (IdCliente, NumeroTelefono),
-    FOREIGN KEY (IdCliente) REFERENCES Cliente(IdCliente)
+    CONSTRAINT fk_IdCliente FOREIGN KEY (IdCliente) REFERENCES Cliente(IdCliente)
 );
 
 -- Tabla Encargado
 CREATE TABLE Encargado (
     CodigoEncargado INT PRIMARY KEY AUTO_INCREMENT,
-    Nombres VARCHAR(20),
-    Apellidos VARCHAR(20),
-    CorreoElectronico VARCHAR(100),
-    Departamento ENUM('SISTEMAS', 'CONTABILIDAD'),
-    Cargo VARCHAR(20)
+    Nombres VARCHAR(20) NOT NULL,
+    Apellidos VARCHAR(20) NOT NULL,
+    CorreoElectronico VARCHAR(100) UNIQUE NOT NULL,
+    Departamento ENUM('SISTEMAS', 'CONTABILIDAD') NOT NULL,
+    Cargo VARCHAR(20) NOT NULL
 );
 
 -- Tabla Solicitud
@@ -45,19 +47,20 @@ CREATE TABLE Solicitud (
     FechaSuscripcion DATE,
     Descuento DECIMAL(5,2),
     Plazo INT,
-    EstadoSolicitud ENUM('APROBADA', 'RECHAZADA', 'CANCELADA', 'EN REVISION'),
-    CuotaInicial DECIMAL(10,2),
-    IdCliente INT,
-    FOREIGN KEY (IdCliente) REFERENCES Cliente(IdCliente)
+    EstadoSolicitud ENUM('APROBADA', 'RECHAZADA', 'CANCELADA', 'EN REVISION') DEFAULT 'EN REVISION',
+    CuotaInicial DECIMAL(10,2) CHECK (CuotaInicial >= 0),
+    IdCliente INT NOT NULL,
+    CONSTRAINT fk_IdCliente FOREIGN KEY (IdCliente) REFERENCES Cliente(IdCliente)
+    -- estado de solicitud debe ser aprobado para que la cuota inicial sea not null
 );
 
 -- Tabla ServicioGeneral
 CREATE TABLE ServicioGeneral (
     CodigoServicio INT PRIMARY KEY AUTO_INCREMENT,
     Descripcion TEXT NOT NULL,
-    PrecioUnitario DECIMAL(10,2) NOT NULL,
-    EstadoServicio ENUM('ACTIVO', 'INACTIVO'),
-    TipoServicio ENUM('PRODUCTO', 'FUNERARIO')
+    PrecioUnitario DECIMAL(10,2) NOT NULL CHECK (PrecioUnitario> 0),
+    EstadoServicio ENUM('ACTIVO', 'INACTIVO') NOT NULL,
+    TipoServicio ENUM('PRODUCTO', 'FUNERARIO') NOT NULL
 );
 
 -- Tabla ServicioFunerario
@@ -65,7 +68,7 @@ CREATE TABLE ServicioFunerario (
     CodigoServicio INT PRIMARY KEY,
     TipoServicio ENUM('CREMACION','TRASLADO','INHUMACION') NOT NULL,
     UbicacionPrestacion VARCHAR(150) NOT NULL,
-    FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
+    CONSTRAINT fk_CodigoServicio FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
 );
 
 -- Tabla ProductoServicio
@@ -80,13 +83,13 @@ CREATE TABLE ProductoServicio (
 -- Tabla AsignacionServicio
 CREATE TABLE AsignacionServicio (
     IdAsignacion INT PRIMARY KEY AUTO_INCREMENT,
-    CodigoSolicitud INT,
-    CodigoServicio INT,
+    CodigoSolicitud INT NOT NULL,
+    CodigoServicio INT NOT NULL,
     Cantidad INT NOT NULL CHECK (Cantidad > 0),
-    Subtotal DECIMAL(10,2),
-    PrecioUnitario DECIMAL(10,2),
-    FOREIGN KEY (CodigoSolicitud) REFERENCES Solicitud(CodigoSolicitud),
-    FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
+    Subtotal DECIMAL(10,2) NOT NULL CHECK (Subtotal> 0), -- derivado de cantidad*preciounitario
+    PrecioUnitario DECIMAL(10,2) NOT NULL CHECK (PrecioUnitario> 0),
+    CONSTRAINT fk_CodigoSolicitud FOREIGN KEY (CodigoSolicitud) REFERENCES Solicitud(CodigoSolicitud),
+    CONSTRAINT fk_CodigoServicio FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
 );
 
 -- Tabla ValidacionInterna
@@ -94,51 +97,55 @@ CREATE TABLE ValidacionInterna (
     IdValidacion INT PRIMARY KEY AUTO_INCREMENT,
     EstadoValidacionSistemas ENUM('APROBADO', 'RECHAZADO'),
     EstadoValidacionContabilidad ENUM('APROBADO', 'RECHAZADO'),
-    FechaRevision DATE,
+    FechaRevision DATE NOT NULL,
     NumeroIntento INT,
-    Observaciones TEXT,
-    CodigoEncargado INT,
+    Observaciones TEXT DEFAULT "NINGUNA",
     CodigoEncargadoSistemas INT,
     CodigoEncargadoContabilidad INT,
-    FOREIGN KEY (CodigoEncargado) REFERENCES Encargado(CodigoEncargado),
-    FOREIGN KEY (CodigoEncargadoSistemas) REFERENCES Encargado(CodigoEncargado),
-    FOREIGN KEY (CodigoEncargadoContabilidad) REFERENCES Encargado(CodigoEncargado)
+    CONSTRAINT fk_CodigoEncargadoSistemas FOREIGN KEY (CodigoEncargadoSistemas) REFERENCES Encargado(CodigoEncargado),
+    CONSTRAINT fk_CodigoEncargadoContabilidad FOREIGN KEY (CodigoEncargadoContabilidad) REFERENCES Encargado(CodigoEncargado)
+
+    -- verificar con trigger que estos codigos correspondan a los tipos en Encargado
+    -- los datos para una misma validacion pueden ser actualizados
 );
 
 -- Tabla Factura
 CREATE TABLE Factura (
     CodigoFactura INT PRIMARY KEY AUTO_INCREMENT,
-    ClaveAcceso VARCHAR(50) UNIQUE,
-    TipoEmision ENUM('NORMAL', 'CONTINGENCIA'),
+    ClaveAcceso VARCHAR(50) UNIQUE NOT NULL,
+    TipoEmision ENUM('NORMAL', 'CONTINGENCIA') DEFAULT 'NORMAL',
     FechaAutorizacion DATE,
-    FechaEmision DATE,
-    Ambiente ENUM('PRUEBA', 'PRODUCCION'),
+    FechaEmision DATE, -- se establece luego de ser aprobada por sri
+    Ambiente ENUM('PRUEBA', 'PRODUCCION') DEFAULT "PRUEBA",
     EstadoAutorizacionSRI ENUM('APROBADO', 'RECHAZADO'),
-    CodigoSolicitud INT,
-    IdValidacion INT,
-    FOREIGN KEY (CodigoSolicitud) REFERENCES Solicitud(CodigoSolicitud),
-    FOREIGN KEY (IdValidacion) REFERENCES ValidacionInterna(IdValidacion)
+    CodigoSolicitud INT NOT NULL,
+    IdValidacion INT NOT NULL,
+    CONSTRAINT fk_CodigoSolicitud FOREIGN KEY (CodigoSolicitud) REFERENCES Solicitud(CodigoSolicitud),
+    CONSTRAINT fk_IdValidacion FOREIGN KEY (IdValidacion) REFERENCES ValidacionInterna(IdValidacion)
+    -- emision de facturas en ambiente de produccion se realiza luego de ser aprobada en ambiente de prueba
 );
 
 -- Tabla Pago
 CREATE TABLE Pago (
-    CodigoFactura INT,
+    CodigoFactura INT NOT NULL,
     IdPago INT PRIMARY KEY AUTO_INCREMENT,
     FechaPago DATE NOT NULL,
     MetodoPago ENUM('CONTADO', 'CREDITO'),
-    MontoPagado DECIMAL(10,2),
-    EstadoPago ENUM('PENDIENTE', 'PAGADO', 'PARCIALMENTE_PAGADO', 'VENCIDA', 'CANCELADA', 'EN_DISPUTA'),
-    ValorCuota DECIMAL(10,2),
-    FOREIGN KEY (CodigoFactura) REFERENCES Factura(CodigoFactura)
+    MontoPagado DECIMAL(10,2) CHECK (MontoPagado> 0),
+    EstadoPago ENUM('PENDIENTE', 'PAGADO', 'PARCIALMENTE_PAGADO', 'VENCIDA', 'CANCELADA', 'EN_DISPUTA') DEFAULT "PENDIENTE",
+    ValorCuota DECIMAL(10,2) CHECK (ValorCuota> 0),
+    CONSTRAINT fk_CodigoFactura FOREIGN KEY (CodigoFactura) REFERENCES Factura(CodigoFactura)
+    -- la fecha de pago se refiere al plazo y cambia cuando el cliente paga igual que el monto pagado
+    -- el cliente puede hacer un solo pago o pagar por cuotas
 );
 
 -- Tabla Insumos
 CREATE TABLE Insumos (
     IdInsumo INT,
     CodigoServicio INT,
-    Nombre VARCHAR(50) NOT NULL,
+    Nombre VARCHAR(50) NOT NULL CHECK (Nombre <> ''),
     PRIMARY KEY (IdInsumo, CodigoServicio),
-    FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
+    CONSTRAINT fk_CodigoServicio FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
 );
 
 -- Creacion de indices para mejorar el rendimiento
