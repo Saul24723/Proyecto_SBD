@@ -13,27 +13,27 @@ CREATE TABLE Cliente (
     IdCliente INT PRIMARY KEY AUTO_INCREMENT,
     Nombres VARCHAR(20) NOT NULL,
     Apellidos VARCHAR(20) NOT NULL,
-    RUC_CI VARCHAR(13) UNIQUE NOT NULL,
+    RUC_CI VARCHAR(13) UNIQUE NOT NULL CHECK (CHAR_LENGTH(RUC_CI) = 10 OR CHAR_LENGTH(RUC_CI) = 13),
     FechaNacimiento DATE,
     Genero ENUM('MASCULINO', 'FEMENINO') NOT NULL,
-    EstadoCivil ENUM('SOLTERO', 'CASADO', 'DIVORCIADO', 'VIUDO') NOT NULL,
+    EstadoCivil ENUM('SOLTERO', 'CASADO', 'DIVORCIADO', 'VIUDO'),
     Direccion VARCHAR(150),
-    CorreoElectronico VARCHAR(100)
+    CorreoElectronico VARCHAR(100) NOT NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE TelefonoCliente (
     IdCliente INT,
-    NumeroTelefono VARCHAR(13),
+    NumeroTelefono VARCHAR(13) CHECK (CHAR_LENGTH(NumeroTelefono) = 10),
     PRIMARY KEY (IdCliente, NumeroTelefono),
-    FOREIGN KEY (IdCliente) REFERENCES Cliente(IdCliente)
+    CONSTRAINT fk_IdCliente FOREIGN KEY (IdCliente) REFERENCES Cliente(IdCliente)
 ) ENGINE=InnoDB;
 
 CREATE TABLE Encargado (
     CodigoEncargado INT PRIMARY KEY AUTO_INCREMENT,
-    Nombres VARCHAR(20),
-    Apellidos VARCHAR(20),
-    CorreoElectronico VARCHAR(100),
-    Departamento ENUM('SISTEMAS', 'CONTABILIDAD'),
+    Nombres VARCHAR(20) NOT NULL,
+    Apellidos VARCHAR(20) NOT NULL,
+    CorreoElectronico VARCHAR(100) UNIQUE NOT NULL,
+    Departamento ENUM('SISTEMAS', 'CONTABILIDAD') NOT NULL,
     Cargo VARCHAR(20)
 ) ENGINE=InnoDB;
 
@@ -43,25 +43,25 @@ CREATE TABLE Solicitud (
     FechaSuscripcion DATE,
     Descuento DECIMAL(5,2),
     Plazo INT,
-    EstadoSolicitud ENUM('APROBADA', 'RECHAZADA', 'CANCELADA', 'EN REVISION'),
-    CuotaInicial DECIMAL(10,2),
-    IdCliente INT,
-    FOREIGN KEY (IdCliente) REFERENCES Cliente(IdCliente)
+    EstadoSolicitud ENUM('APROBADA', 'RECHAZADA', 'CANCELADA', 'EN REVISION') DEFAULT 'EN REVISION',
+    CuotaInicial DECIMAL(10,2) CHECK (CuotaInicial >= 0),
+    IdCliente INT NOT NULL,
+    CONSTRAINT fk_IdClienteSolicitud FOREIGN KEY (IdCliente) REFERENCES Cliente(IdCliente)
 ) ENGINE=InnoDB;
 
 CREATE TABLE ServicioGeneral (
     CodigoServicio INT PRIMARY KEY AUTO_INCREMENT,
     Descripcion TEXT NOT NULL,
-    PrecioUnitario DECIMAL(10,2) NOT NULL,
-    EstadoServicio ENUM('ACTIVO', 'INACTIVO'),
-    TipoServicio ENUM('PRODUCTO', 'FUNERARIO')
+    PrecioUnitario DECIMAL(10,2) NOT NULL CHECK (PrecioUnitario> 0),
+    EstadoServicio ENUM('ACTIVO', 'INACTIVO') NOT NULL,
+    TipoServicio ENUM('PRODUCTO', 'FUNERARIO') NOT NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE ServicioFunerario (
     CodigoServicio INT PRIMARY KEY,
     TipoServicio ENUM('CREMACION','TRASLADO','INHUMACION') NOT NULL,
     UbicacionPrestacion VARCHAR(150) NOT NULL,
-    FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
+    CONSTRAINT fk_CodigoServicio_Funerario FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
 ) ENGINE=InnoDB;
 
 CREATE TABLE ProductoServicio (
@@ -69,66 +69,64 @@ CREATE TABLE ProductoServicio (
     LugarEntregaProducto VARCHAR(150) NOT NULL,
     Material VARCHAR(20) NOT NULL,
     TipoProducto ENUM('COFRE','ARREGLOS_FLORALES','CENIZARIO','LOTE','UNIDAD_FAMILIAR','BOVEDA','OSARIO') NOT NULL,
-    FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
+    CONSTRAINT fk_CodigoServicio_Producto FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
 ) ENGINE=InnoDB;
 
 CREATE TABLE AsignacionServicio (
     IdAsignacion INT PRIMARY KEY AUTO_INCREMENT,
-    CodigoSolicitud INT,
-    CodigoServicio INT,
+    CodigoSolicitud INT NOT NULL,
+    CodigoServicio INT NOT NULL,
     Cantidad INT NOT NULL CHECK (Cantidad > 0),
-    Subtotal DECIMAL(10,2),
-    PrecioUnitario DECIMAL(10,2),
-    FOREIGN KEY (CodigoSolicitud) REFERENCES Solicitud(CodigoSolicitud),
-    FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
+    Subtotal DECIMAL(10,2) DEFAULT 0 CHECK (Subtotal>= 0), 
+    PrecioUnitario DECIMAL(10,2) DEFAULT 0 CHECK (PrecioUnitario>= 0),
+    CONSTRAINT fk_CodigoSolicitudAsociada FOREIGN KEY (CodigoSolicitud) REFERENCES Solicitud(CodigoSolicitud),
+    CONSTRAINT fk_CodigoServicioAsignado FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
 ) ENGINE=InnoDB;
 
 CREATE TABLE ValidacionInterna (
     IdValidacion INT PRIMARY KEY AUTO_INCREMENT,
     EstadoValidacionSistemas ENUM('APROBADO', 'RECHAZADO'),
     EstadoValidacionContabilidad ENUM('APROBADO', 'RECHAZADO'),
-    FechaRevision DATE,
+    FechaRevision DATE NOT NULL,
     NumeroIntento INT,
     Observaciones TEXT,
-    CodigoEncargado INT,
-    CodigoEncargadoSistemas INT,
-    CodigoEncargadoContabilidad INT,
-    FOREIGN KEY (CodigoEncargado) REFERENCES Encargado(CodigoEncargado),
-    FOREIGN KEY (CodigoEncargadoSistemas) REFERENCES Encargado(CodigoEncargado),
-    FOREIGN KEY (CodigoEncargadoContabilidad) REFERENCES Encargado(CodigoEncargado)
+    CodigoEncargadoSistemas INT NOT NULL,
+    CodigoEncargadoContabilidad INT NULL,
+    CONSTRAINT fk_CodigoEncargadoSistemas FOREIGN KEY (CodigoEncargadoSistemas) REFERENCES Encargado(CodigoEncargado),
+    CONSTRAINT fk_CodigoEncargadoContabilidad FOREIGN KEY (CodigoEncargadoContabilidad) REFERENCES Encargado(CodigoEncargado)
 ) ENGINE=InnoDB;
 
 CREATE TABLE Factura (
     CodigoFactura INT PRIMARY KEY AUTO_INCREMENT,
-    ClaveAcceso VARCHAR(50) UNIQUE,
-    TipoEmision ENUM('NORMAL', 'CONTINGENCIA'),
+    ClaveAcceso VARCHAR(50) UNIQUE NOT NULL,
+    TipoEmision ENUM('NORMAL', 'CONTINGENCIA') DEFAULT 'NORMAL',
     FechaAutorizacion DATE,
     FechaEmision DATE,
-    Ambiente ENUM('PRUEBA', 'PRODUCCION'),
+    Ambiente ENUM('PRUEBA', 'PRODUCCION') NOT NULL,
     EstadoAutorizacionSRI ENUM('APROBADO', 'RECHAZADO'),
-    CodigoSolicitud INT,
-    IdValidacion INT,
-    FOREIGN KEY (CodigoSolicitud) REFERENCES Solicitud(CodigoSolicitud),
-    FOREIGN KEY (IdValidacion) REFERENCES ValidacionInterna(IdValidacion)
+    CodigoSolicitud INT NOT NULL,
+    IdValidacion INT NOT NULL,
+    CONSTRAINT fk_CodigoSolicitud FOREIGN KEY (CodigoSolicitud) REFERENCES Solicitud(CodigoSolicitud),
+    CONSTRAINT fk_IdValidacion FOREIGN KEY (IdValidacion) REFERENCES ValidacionInterna(IdValidacion)
 ) ENGINE=InnoDB;
 
 CREATE TABLE Pago (
-    CodigoFactura INT,
+    CodigoFactura INT NOT NULL,
     IdPago INT PRIMARY KEY AUTO_INCREMENT,
     FechaPago DATE NOT NULL,
     MetodoPago ENUM('CONTADO', 'CREDITO'),
-    MontoPagado DECIMAL(10,2),
-    EstadoPago ENUM('PENDIENTE', 'PAGADO', 'PARCIALMENTE_PAGADO', 'VENCIDA', 'CANCELADA', 'EN_DISPUTA'),
-    ValorCuota DECIMAL(10,2),
-    FOREIGN KEY (CodigoFactura) REFERENCES Factura(CodigoFactura)
+    MontoPagado DECIMAL(10,2) CHECK (MontoPagado> 0),
+    EstadoPago ENUM('PENDIENTE', 'PAGADO', 'PARCIALMENTE_PAGADO', 'VENCIDA', 'CANCELADA', 'EN_DISPUTA') DEFAULT "PENDIENTE",
+    ValorCuota DECIMAL(10,2) CHECK (ValorCuota> 0),
+    CONSTRAINT fk_CodigoFactura FOREIGN KEY (CodigoFactura) REFERENCES Factura(CodigoFactura)
 ) ENGINE=InnoDB;
 
 CREATE TABLE Insumos (
     IdInsumo INT,
     CodigoServicio INT,
-    Nombre VARCHAR(50) NOT NULL,
+    Nombre VARCHAR(50) NOT NULL CHECK (Nombre <> ''),
     PRIMARY KEY (IdInsumo, CodigoServicio),
-    FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
+    CONSTRAINT fk_CodigoServicioFunerario FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
 ) ENGINE=InnoDB;
 
 -- Indices
@@ -215,18 +213,18 @@ INSERT INTO ServicioFunerario (CodigoServicio, TipoServicio, UbicacionPrestacion
 -- 8) ValidacionInterna
 INSERT INTO ValidacionInterna
 (IdValidacion, EstadoValidacionSistemas, EstadoValidacionContabilidad, FechaRevision, NumeroIntento,
- Observaciones, CodigoEncargado, CodigoEncargadoSistemas, CodigoEncargadoContabilidad)
+ Observaciones, CodigoEncargadoSistemas, CodigoEncargadoContabilidad)
 VALUES
-(301, 'APROBADO',  'APROBADO',  '2025-08-05', 1, 'OK',                 1, 2, 3),
-(302, 'APROBADO',  'APROBADO',  '2025-08-06', 1, 'OK',                 1, 2, 3),
-(303, 'RECHAZADO', 'APROBADO',  '2025-08-06', 2, 'Error XML',          1, 5, 3),
-(304, 'APROBADO',  'RECHAZADO', '2025-08-07', 1, 'Glosa contable',     1, 2, 4),
-(305, 'RECHAZADO', 'RECHAZADO', '2025-08-07', 2, 'Fallas múltiples',   1, 5, 4),
-(306, 'APROBADO',  'APROBADO',  '2025-08-08', 1, 'OK',                 1, 2, 3),
-(307, 'APROBADO',  'APROBADO',  '2025-08-08', 1, 'Pend. por sistemas', 1, 2, 3),
-(308, 'APROBADO',  'APROBADO',  '2025-08-09', 1, 'Pend. contab.',      1, 2, 4),
-(309, 'RECHAZADO', 'APROBADO',  '2025-08-09', 3, 'Timeout SRI',        1, 5, 3),
-(310, 'APROBADO',  'APROBADO',  '2025-08-10', 1, 'OK',                 1, 2, 3);
+(301, 'APROBADO',  'APROBADO',  '2025-08-05', 1, 'OK',                 2, 3),
+(302, 'APROBADO',  'APROBADO',  '2025-08-06', 1, 'OK',                 2, 3),
+(303, 'RECHAZADO', 'APROBADO',  '2025-08-06', 2, 'Error XML',          5, 3),
+(304, 'APROBADO',  'RECHAZADO', '2025-08-07', 1, 'Glosa contable',     2, 4),
+(305, 'RECHAZADO', 'RECHAZADO', '2025-08-07', 2, 'Fallas múltiples',   5, 4),
+(306, 'APROBADO',  'APROBADO',  '2025-08-08', 1, 'OK',                 2, 3),
+(307, 'APROBADO',  'APROBADO',  '2025-08-08', 1, 'Pend. por sistemas', 2, 3),
+(308, 'APROBADO',  'APROBADO',  '2025-08-09', 1, 'Pend. contab.',      2, 4),
+(309, 'RECHAZADO', 'APROBADO',  '2025-08-09', 3, 'Timeout SRI',        5, 3),
+(310, 'APROBADO',  'APROBADO',  '2025-08-10', 1, 'OK',                 2, 3);
 
 -- 9) Factura  (1003 pendiente real; 1007 rechazada)
 INSERT INTO Factura
