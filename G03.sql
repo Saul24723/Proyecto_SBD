@@ -333,7 +333,6 @@ SELECT
   sg.TipoServicio,
   a.Cantidad,
   COALESCE(a.Subtotal, a.Cantidad * a.PrecioUnitario) AS ImporteItem,
-  CONCAT(eGen.Nombres,' ',eGen.Apellidos) AS ResponsableGeneral,
   CONCAT(eSis.Nombres,' ',eSis.Apellidos) AS ResponsableSistemas,
   CONCAT(eCon.Nombres,' ',eCon.Apellidos) AS ResponsableContabilidad
 FROM Factura f
@@ -341,7 +340,6 @@ JOIN Solicitud s            ON s.CodigoSolicitud = f.CodigoSolicitud
 JOIN AsignacionServicio a   ON a.CodigoSolicitud = s.CodigoSolicitud
 JOIN ServicioGeneral sg     ON sg.CodigoServicio = a.CodigoServicio
 LEFT JOIN ValidacionInterna v ON v.IdValidacion = f.IdValidacion
-LEFT JOIN Encargado eGen       ON eGen.CodigoEncargado = v.CodigoEncargado
 LEFT JOIN Encargado eSis       ON eSis.CodigoEncargado = v.CodigoEncargadoSistemas
 LEFT JOIN Encargado eCon       ON eCon.CodigoEncargado = v.CodigoEncargadoContabilidad
 WHERE YEAR(f.FechaEmision)=YEAR(CURDATE())
