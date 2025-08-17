@@ -226,7 +226,7 @@ VALUES
 (309, 'RECHAZADO', 'APROBADO',  '2025-08-09', 3, 'Timeout SRI',        5, 3),
 (310, 'APROBADO',  'APROBADO',  '2025-08-10', 1, 'OK',                 2, 3);
 
--- 9) Factura  (1003 pendiente real; 1007 rechazada)
+-- 9) Factura  
 INSERT INTO Factura
 (CodigoFactura, ClaveAcceso, TipoEmision, FechaAutorizacion, FechaEmision, Ambiente, EstadoAutorizacionSRI, CodigoSolicitud, IdValidacion) VALUES
 (1001, 'AC-101-1', 'NORMAL',       '2025-08-05', '2025-08-05', 'PRODUCCION', 'APROBADO',  101, 301),
@@ -260,9 +260,8 @@ INSERT INTO AsignacionServicio (IdAsignacion, CodigoSolicitud, CodigoServicio, C
 (16, 110, 203, 2, 240.00, 120.00),
 (17, 110, 207, 1, 150.00, 150.00);
 
--- 11) Pagos (ajustados para consistencia con IVA)
--- Totales con IVA esperados:
--- 1001: 300+150=450 -> 504.00 ; 1006: 700+150=850 -> 952.00 ; 1010: 240+150=390 -> 436.80
+-- 11) Pagos 
+
 INSERT INTO Pago (CodigoFactura, IdPago, FechaPago, MetodoPago, MontoPagado, EstadoPago, ValorCuota) VALUES
 (1001, 1, '2025-08-06', 'CONTADO', 450.00, 'PARCIALMENTE_PAGADO', 450.00),
 (1002, 2, '2025-08-07', 'CREDITO', 200.00, 'PARCIALMENTE_PAGADO', 200.00),
@@ -289,14 +288,14 @@ INSERT INTO Insumos (IdInsumo, CodigoServicio, Nombre) VALUES
 SELECT
   SUM(FechaEmision IS NOT NULL
       AND YEAR(FechaEmision)=YEAR(CURDATE())
-      AND MONTH(FechaEmision)=MONTH(CURDATE()))        AS emitidos_mes,
+      AND MONTH(FechaEmision)=MONTH(CURDATE())) AS emitidos_mes,
   SUM(EstadoAutorizacionSRI='APROBADO'
       AND FechaAutorizacion IS NOT NULL
       AND YEAR(FechaAutorizacion)=YEAR(CURDATE())
       AND MONTH(FechaAutorizacion)=MONTH(CURDATE()))   AS autorizados_mes
 FROM Factura;
 
--- 2) Pendientes SRI (solo pendientes), mostrando "PENDIENTE"/"FECHA-PENDIENTE"
+-- 2) Pendientes SRI (solo pendientes)
 SELECT
   f.CodigoFactura,
   f.ClaveAcceso,
@@ -369,7 +368,7 @@ WHERE YEAR(f.FechaEmision)=YEAR(CURDATE())
 ORDER BY f.FechaEmision DESC, f.CodigoFactura DESC;
 
 -- ============================
--- Vista (solo pendientes reales)
+-- Vista 
 -- ============================
 DROP VIEW IF EXISTS vw_ComprobantesPendientesSRI_MesActual;
 CREATE VIEW vw_ComprobantesPendientesSRI_MesActual AS
@@ -385,12 +384,12 @@ WHERE f.FechaEmision IS NOT NULL
   AND MONTH(f.FechaEmision) = MONTH(CURDATE())
   AND f.EstadoAutorizacionSRI IS NULL;
 
--- Ejemplo de uso:
--- SELECT * FROM vw_ComprobantesPendientesSRI_MesActual
--- ORDER BY FechaEmision DESC, CodigoFactura DESC;
+-- Ejemplo de uso de la vista:
+SELECT * FROM vw_ComprobantesPendientesSRI_MesActual
+ORDER BY FechaEmision DESC, CodigoFactura DESC;
 
 -- ============================
--- PROCEDURE con transacción
+-- PROCEDURE con transacción y validación de errores
 -- ============================
 DELIMITER $$
 
@@ -527,7 +526,7 @@ END $$
 DELIMITER ;
 
 -- ============================
--- Pruebas opcionales (descomenta si deseas)
+-- Pruebas del procedure
 -- ============================
 -- -- Caso error por factura inexistente (muestra mensaje del handler):
 CALL sp_RegistrarPagoYActualizarFactura(1, CURDATE(), 'CONTADO', 150.00, 150.00);
@@ -537,56 +536,7 @@ CALL sp_RegistrarPagoYActualizarFactura(1003, CURDATE(), 'CONTADO', 260.00, 260.
 -- -- Ver pagos:
 SELECT * FROM Pago WHERE CodigoFactura=1003 ORDER BY IdPago;
 
--- Eliminar vista si ya existe
--- DROP VIEW IF EXISTS VistaSolicitudesEnRevision;
 
--- VISTA: Vista para ver solicitudes con estado 'EN REVISION'
--- CREATE VIEW VistaSolicitudesEnRevision AS
--- SELECT CodigoSolicitud, FechaSolicitud, EstadoSolicitud, IdCliente
--- FROM Solicitud
--- WHERE EstadoSolicitud = 'EN REVISION';
-
--- Eliminar procedimiento si ya existe
--- DROP PROCEDURE IF EXISTS RegistrarPago;
-
--- PROCEDIMIENTO almacenado con transacción para registrar pago
--- DELIMITER //
--- CREATE PROCEDURE RegistrarPago(
-    -- IN p_CodigoFactura INT,
-    -- IN p_FechaPago DATE,
-    -- IN p_MetodoPago ENUM('CONTADO','CREDITO'),
-    -- IN p_Monto DECIMAL(10,2),
-    -- IN p_EstadoPago ENUM('PENDIENTE','PAGADO','PARCIALMENTE_PAGADO','VENCIDA','CANCELADA','EN_DISPUTA'),
-    -- IN p_ValorCuota DECIMAL(10,2)
--- )
--- BEGIN
-    -- START TRANSACTION;
-    -- INSERT INTO Pago (CodigoFactura, FechaPago, MetodoPago, MontoPagado, EstadoPago, ValorCuota)
-    -- VALUES (p_CodigoFactura, p_FechaPago, p_MetodoPago, p_Monto, p_EstadoPago, p_ValorCuota);
-    
-    -- UPDATE Factura 
-    -- SET EstadoAutorizacionSRI = 'APROBADO' 
-    -- WHERE CodigoFactura = p_CodigoFactura;
-    
-    -- COMMIT;
--- END //
--- DELIMITER ;
-
--- Eliminar trigger si ya existe
--- DROP TRIGGER IF EXISTS trg_validar_descuento;
-
--- TRIGGER: Verificar descuento no mayor al 20%
--- DELIMITER //
--- CREATE TRIGGER trg_validar_descuento
--- BEFORE INSERT ON Solicitud
--- FOR EACH ROW
--- BEGIN
-    -- IF NEW.Descuento > 20 THEN
-        -- SIGNAL SQLSTATE '45000'
-        -- SET MESSAGE_TEXT = 'El descuento no puede ser mayor al 20%';
-    -- END IF;
--- END //
--- DELIMITER ;
 
 
 
