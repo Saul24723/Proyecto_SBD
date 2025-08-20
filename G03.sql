@@ -129,14 +129,6 @@ CREATE TABLE Insumos (
     CONSTRAINT fk_CodigoServicioFunerario FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
 ) ENGINE=InnoDB;
 
--- Indices
-CREATE INDEX idx_telcliente_cliente ON TelefonoCliente (IdCliente);
-CREATE INDEX idx_solicitud_cliente ON Solicitud (IdCliente);
-CREATE INDEX idx_asignacion_sol ON AsignacionServicio (CodigoSolicitud);
-CREATE INDEX idx_asignacion_srv ON AsignacionServicio (CodigoServicio);
-CREATE INDEX idx_factura_sol ON Factura (CodigoSolicitud);
-CREATE INDEX idx_factura_val ON Factura (IdValidacion);
-CREATE INDEX idx_pago_factura ON Pago (CodigoFactura);
 
 -- ============================
 -- Insercion de datos
