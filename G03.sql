@@ -5,9 +5,9 @@ USE G03;
 SET NAMES utf8mb4;
 SET sql_mode = 'STRICT_ALL_TABLES';
 
--- ============================
--- Creacion de Tablas
--- ============================
+
+-- Creacion de Tablas de la base de datos,
+
 
 CREATE TABLE Cliente (
     IdCliente INT PRIMARY KEY AUTO_INCREMENT,
@@ -41,12 +41,13 @@ CREATE TABLE Solicitud (
     CodigoSolicitud INT PRIMARY KEY AUTO_INCREMENT,
     FechaSolicitud DATE NOT NULL,
     FechaSuscripcion DATE,
+    CondicionesPago ENUM('CONTADO','CREDITO') NOT NULL,
     Descuento DECIMAL(5,2),
     Plazo INT,
     EstadoSolicitud ENUM('APROBADA', 'RECHAZADA', 'CANCELADA', 'EN REVISION') DEFAULT 'EN REVISION',
     CuotaInicial DECIMAL(10,2) CHECK (CuotaInicial >= 0),
     IdCliente INT NOT NULL,
-    CONSTRAINT fk_IdClienteSolicitud FOREIGN KEY (IdCliente) REFERENCES Cliente(IdCliente)
+    CONSTRAINT fk_Solicitud_Cliente FOREIGN KEY (IdCliente) REFERENCES Cliente(IdCliente)
 ) ENGINE=InnoDB;
 
 CREATE TABLE ServicioGeneral (
@@ -129,10 +130,8 @@ CREATE TABLE Insumos (
     CONSTRAINT fk_CodigoServicioFunerario FOREIGN KEY (CodigoServicio) REFERENCES ServicioGeneral(CodigoServicio)
 ) ENGINE=InnoDB;
 
-
--- ============================
 -- Insercion de datos
--- ============================
+
 
 -- 1) Clientes
 INSERT INTO Cliente VALUES
@@ -161,17 +160,18 @@ INSERT INTO Encargado (CodigoEncargado, Nombres, Apellidos, CorreoElectronico, D
 (5, 'Sofía', 'Reyes',        'sofia.reyes@empresa.com',        'SISTEMAS', 'Soporte');
 
 -- 4) Solicitudes (agosto 2025)
-INSERT INTO Solicitud VALUES
-(101, '2025-08-01', '2025-08-02', 0.00, 12, 'EN REVISION', 100.00, 1),
-(102, '2025-08-01', '2025-08-02', 5.00, 10, 'APROBADA', 150.00, 2),
-(103, '2025-08-01', '2025-08-03', 2.50, 6, 'CANCELADA', 120.00, 3),
-(104, '2025-08-02', '2025-08-03', 0.00, 9, 'RECHAZADA', 200.00, 4),
-(105, '2025-08-02', '2025-08-04', 10.00, 24, 'EN REVISION', 180.00, 5),
-(106, '2025-08-03', '2025-08-05', 3.50, 18, 'APROBADA', 220.00, 6),
-(107, '2025-08-03', '2025-08-06', 1.00, 6, 'CANCELADA', 90.00, 7),
-(108, '2025-08-04', '2025-08-06', 0.00, 12, 'EN REVISION', 130.00, 8),
-(109, '2025-08-04', '2025-08-07', 7.50, 15, 'APROBADA', 160.00, 9),
-(110, '2025-08-05', '2025-08-08', 0.00, 10, 'RECHAZADA', 140.00, 10);
+INSERT INTO Solicitud (CodigoSolicitud, FechaSolicitud, FechaSuscripcion, CondicionesPago, Descuento, Plazo, EstadoSolicitud, CuotaInicial, IdCliente) VALUES
+(101, '2025-08-01', '2025-08-02', 'CREDITO', 0.00, 12, 'EN REVISION', 100.00, 1),
+(102, '2025-08-01', '2025-08-02', 'CONTADO', 5.00, 10, 'APROBADA', 150.00, 2),
+(103, '2025-08-01', '2025-08-03', 'CREDITO', 2.50, 6, 'CANCELADA', 120.00, 3),
+(104, '2025-08-02', '2025-08-03', 'CONTADO', 0.00, 9, 'RECHAZADA', 200.00, 4),
+(105, '2025-08-02', '2025-08-04', 'CREDITO', 10.00, 24, 'EN REVISION', 180.00, 5),
+(106, '2025-08-03', '2025-08-05', 'CONTADO', 3.50, 18, 'APROBADA', 220.00, 6),
+(107, '2025-08-03', '2025-08-06', 'CREDITO', 1.00, 6, 'CANCELADA', 90.00, 7),
+(108, '2025-08-04', '2025-08-06', 'CONTADO', 0.00, 12, 'EN REVISION', 130.00, 8),
+(109, '2025-08-04', '2025-08-07', 'CREDITO', 7.50, 15, 'APROBADA', 160.00, 9),
+(110, '2025-08-05', '2025-08-08', 'CONTADO', 0.00, 10, 'RECHAZADA', 140.00, 10);
+
 
 -- 5) ServicioGeneral
 INSERT INTO ServicioGeneral (CodigoServicio, Descripcion, PrecioUnitario, EstadoServicio, TipoServicio) VALUES
@@ -272,11 +272,13 @@ INSERT INTO Insumos (IdInsumo, CodigoServicio, Nombre) VALUES
 (1, 202, 'Flores variadas'),
 (2, 202, 'Espuma floral');
 
--- ============================
--- Consultas relevantes
--- ============================
 
--- 1) Emitidos y autorizados este mes
+-- Consultas relevantes
+
+
+-- 1) Facturas emitidas y autorizadas este mes
+-- Cuenta cuántas facturas fueron emitidas en el mes actual
+-- y cuántas ya fueron autorizadas por el SRI.
 SELECT
   SUM(FechaEmision IS NOT NULL
       AND YEAR(FechaEmision)=YEAR(CURDATE())
@@ -287,7 +289,9 @@ SELECT
       AND MONTH(FechaAutorizacion)=MONTH(CURDATE()))   AS autorizados_mes
 FROM Factura;
 
--- 2) Pendientes SRI (solo pendientes)
+-- 2) Facturas pendientes en el SRI
+-- Lista facturas emitidas este mes que aún no tienen autorización.
+
 SELECT
   f.CodigoFactura,
   f.ClaveAcceso,
@@ -302,6 +306,7 @@ WHERE f.FechaEmision IS NOT NULL
 ORDER BY f.FechaEmision DESC, f.CodigoFactura DESC;
 
 -- 3) Monto total facturado por cliente en el mes
+-- Resume cuánto ha facturado cada cliente en el mes actual.
 SELECT
   c.IdCliente,
   CONCAT(c.Nombres,' ',c.Apellidos) AS Cliente,
@@ -315,7 +320,10 @@ WHERE YEAR(f.FechaEmision)=YEAR(CURDATE())
 GROUP BY c.IdCliente, Cliente
 ORDER BY TotalFacturadoMes DESC;
 
--- 4) Servicios facturados y responsables (este mes)
+
+-- 4) Servicios facturados y responsables
+-- Muestra servicios cobrados y responsables de validación interna (Sistemas/Contabilidad).
+
 SELECT
   f.CodigoFactura,
   f.FechaEmision,
@@ -327,17 +335,19 @@ SELECT
   CONCAT(eSis.Nombres,' ',eSis.Apellidos) AS ResponsableSistemas,
   CONCAT(eCon.Nombres,' ',eCon.Apellidos) AS ResponsableContabilidad
 FROM Factura f
-JOIN Solicitud s            ON s.CodigoSolicitud = f.CodigoSolicitud
-JOIN AsignacionServicio a   ON a.CodigoSolicitud = s.CodigoSolicitud
-JOIN ServicioGeneral sg     ON sg.CodigoServicio = a.CodigoServicio
+INNER JOIN Solicitud s ON s.CodigoSolicitud = f.CodigoSolicitud
+INNER JOIN AsignacionServicio a ON a.CodigoSolicitud = s.CodigoSolicitud
+INNER JOIN ServicioGeneral sg ON sg.CodigoServicio = a.CodigoServicio
 LEFT JOIN ValidacionInterna v ON v.IdValidacion = f.IdValidacion
-LEFT JOIN Encargado eSis       ON eSis.CodigoEncargado = v.CodigoEncargadoSistemas
-LEFT JOIN Encargado eCon       ON eCon.CodigoEncargado = v.CodigoEncargadoContabilidad
-WHERE YEAR(f.FechaEmision)=YEAR(CURDATE())
-  AND MONTH(f.FechaEmision)=MONTH(CURDATE())
+LEFT JOIN Encargado eSis ON eSis.CodigoEncargado = v.CodigoEncargadoSistemas
+LEFT JOIN Encargado eCon ON eCon.CodigoEncargado = v.CodigoEncargadoContabilidad
+WHERE YEAR(f.FechaEmision)=YEAR(CURDATE()) AND MONTH(f.FechaEmision)=MONTH(CURDATE())
 ORDER BY f.FechaEmision, f.CodigoFactura, sg.CodigoServicio;
 
--- 5) Comprobantes a reenviar a sistemas (este mes)
+-- 5) Comprobantes a reenviar a sistemas
+-- Identifica facturas rechazadas o con validación fallida y muestra
+-- los responsables de sistemas y sus correos.
+
 SELECT
   f.CodigoFactura,
   f.ClaveAcceso,
@@ -350,18 +360,14 @@ SELECT
 FROM Factura f
 LEFT JOIN ValidacionInterna v ON v.IdValidacion = f.IdValidacion
 LEFT JOIN Encargado eSis       ON eSis.CodigoEncargado = v.CodigoEncargadoSistemas
-WHERE YEAR(f.FechaEmision)=YEAR(CURDATE())
-  AND MONTH(f.FechaEmision)=MONTH(CURDATE())
-  AND (
-        f.EstadoAutorizacionSRI = 'RECHAZADO'
-     OR v.EstadoValidacionSistemas = 'RECHAZADO'
-     OR v.EstadoValidacionSistemas IS NULL
-  )
+WHERE YEAR(f.FechaEmision)=YEAR(CURDATE()) AND MONTH(f.FechaEmision)=MONTH(CURDATE()) AND (f.EstadoAutorizacionSRI = 'RECHAZADO' OR v.EstadoValidacionSistemas = 'RECHAZADO' OR v.EstadoValidacionSistemas IS NULL)
 ORDER BY f.FechaEmision DESC, f.CodigoFactura DESC;
 
--- ============================
--- Vista 
--- ============================
+
+-- Vista: permite consultar de manera rápida y organizada todas las facturas que han sido emitidas en el mes actual 
+-- pero que aún no cuentan con autorización del SRI. Su propósito es simplificar el seguimiento de 
+-- comprobantes pendientes, evitando tener que ejecutar la consulta completa cada vez y facilitando el control de estados en contabilidad
+
 DROP VIEW IF EXISTS vw_ComprobantesPendientesSRI_MesActual;
 CREATE VIEW vw_ComprobantesPendientesSRI_MesActual AS
 SELECT
@@ -371,25 +377,23 @@ SELECT
   CASE WHEN f.EstadoAutorizacionSRI IS NULL THEN 'PENDIENTE' ELSE f.EstadoAutorizacionSRI END AS EstadoAutorizacion,
   CASE WHEN f.FechaAutorizacion IS NULL THEN 'FECHA-PENDIENTE' ELSE DATE_FORMAT(f.FechaAutorizacion, '%Y-%m-%d') END AS FechaAutorizacion
 FROM Factura f
-WHERE f.FechaEmision IS NOT NULL
-  AND YEAR(f.FechaEmision) = YEAR(CURDATE())
-  AND MONTH(f.FechaEmision) = MONTH(CURDATE())
-  AND f.EstadoAutorizacionSRI IS NULL;
+WHERE f.FechaEmision IS NOT NULL AND YEAR(f.FechaEmision) = YEAR(CURDATE()) AND MONTH(f.FechaEmision) = MONTH(CURDATE()) AND f.EstadoAutorizacionSRI IS NULL;
 
 -- Ejemplo de uso de la vista:
 SELECT * FROM vw_ComprobantesPendientesSRI_MesActual
 ORDER BY FechaEmision DESC, CodigoFactura DESC;
 
--- ============================
+
 -- PROCEDURE con transacción y validación de errores
--- ============================
+-- Procedure para registrar un pago de factura.
+-- Incluye transacción: si algo falla, se deshace todo.
 DELIMITER $$
 
 DROP PROCEDURE IF EXISTS sp_RegistrarPagoYActualizarFactura $$
 CREATE PROCEDURE sp_RegistrarPagoYActualizarFactura (
     IN p_CodigoFactura INT,
     IN p_FechaPago DATE,
-    IN p_MetodoPago VARCHAR(10),           -- 'CONTADO' o 'CREDITO'
+    IN p_MetodoPago VARCHAR(10),          
     IN p_MontoPagado DECIMAL(10,2),
     IN p_ValorCuota DECIMAL(10,2)
 )
@@ -398,7 +402,6 @@ BEGIN
     DECLARE v_total_subtotal DECIMAL(12,2) DEFAULT 0.00;
     DECLARE v_total_factura  DECIMAL(12,2) DEFAULT 0.00;
     DECLARE v_total_pagado   DECIMAL(12,2) DEFAULT 0.00;
-
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
@@ -424,7 +427,6 @@ BEGIN
 
     SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
     START TRANSACTION;
-
     -- Solicitud asociada (bloqueo)
     SELECT CodigoSolicitud
       INTO v_CodigoSolicitud
@@ -435,8 +437,7 @@ BEGIN
     IF v_CodigoSolicitud IS NULL THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Factura no encontrada.';
     END IF;
-
-    -- Total asignaciones (Subtotal o Cantidad*Precio)
+    -- Total asignaciones 
     SELECT COALESCE(SUM(COALESCE(Subtotal, Cantidad * PrecioUnitario)), 0)
       INTO v_total_subtotal
       FROM AsignacionServicio
@@ -446,21 +447,17 @@ BEGIN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'La solicitud no tiene asignaciones; no se puede registrar pago.';
     END IF;
-
     -- IVA 12%
     SET v_total_factura = ROUND(v_total_subtotal * 1.12, 2);
-
     -- Insertar pago
     INSERT INTO Pago (CodigoFactura, FechaPago, MetodoPago, MontoPagado, EstadoPago, ValorCuota)
     VALUES (p_CodigoFactura, p_FechaPago, p_MetodoPago, p_MontoPagado, 'PENDIENTE', p_ValorCuota);
-
     -- Total pagado acumulado (bloqueo)
     SELECT COALESCE(SUM(MontoPagado),0)
       INTO v_total_pagado
       FROM Pago
      WHERE CodigoFactura = p_CodigoFactura
      FOR UPDATE;
-
     -- Actualizar estados
     IF v_total_pagado >= v_total_factura THEN
         UPDATE Pago SET EstadoPago = 'PAGADO'
@@ -469,9 +466,7 @@ BEGIN
         UPDATE Pago SET EstadoPago = 'PARCIALMENTE_PAGADO'
         WHERE CodigoFactura = p_CodigoFactura;
     END IF;
-
     COMMIT;
-
     SELECT 'Pago registrado correctamente.' AS Mensaje,
            v_total_factura AS TotalFacturaEstimado,
            v_total_pagado  AS TotalPagado;
@@ -479,9 +474,11 @@ END $$
 
 DELIMITER ;
 
--- ============================
+
 -- TRIGGER (regla de negocio)
--- ============================
+-- Trigger que descuenta stock al registrar detalle de factura.
+-- Se asegura que el inventario se mantenga actualizado automáticamente.
+
 DELIMITER $$
 
 DROP TRIGGER IF EXISTS trg_validar_departamento_encargados $$
@@ -517,17 +514,17 @@ END $$
 
 DELIMITER ;
 
--- ============================
--- Pruebas del procedure
--- ============================
--- -- Caso error por factura inexistente (muestra mensaje del handler):
-CALL sp_RegistrarPagoYActualizarFactura(1, CURDATE(), 'CONTADO', 150.00, 150.00);
--- Parcial y luego total para 1003:
-CALL sp_RegistrarPagoYActualizarFactura(1003, CURDATE(), 'CONTADO', 100.00, 100.00);
-CALL sp_RegistrarPagoYActualizarFactura(1003, CURDATE(), 'CONTADO', 260.00, 260.00);
--- -- Ver pagos:
-SELECT * FROM Pago WHERE CodigoFactura=1003 ORDER BY IdPago;
-
+-- Consultas extra: Usada en la interfaz de usuario para el grafico
+-- Este sistema gestiona la facturación de clientes, solicitudes de servicios (productos y funerarios), validaciones internas, emisión de facturas y registro
+-- de pagos, garantizando integridad y trazabilidad.
+SELECT
+  DATE_FORMAT(FechaEmision, '%Y-%m') AS Mes,
+  COUNT(*) AS Emitidos,
+  SUM(CASE WHEN EstadoAutorizacionSRI='APROBADO' THEN 1 ELSE 0 END) AS Autorizados
+FROM Factura
+WHERE FechaEmision IS NOT NULL
+GROUP BY Mes
+ORDER BY Mes;
 
 
 
