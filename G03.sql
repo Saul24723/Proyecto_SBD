@@ -385,7 +385,7 @@ ORDER BY FechaEmision DESC, CodigoFactura DESC;
 
 
 -- PROCEDURE con transacción y validación de errores
--- Procedure para registrar un pago de factura.
+-- Procedure para registrar un pago y actualizar el estado de pago en la factura.
 -- Incluye transacción: si algo falla, se deshace todo.
 DELIMITER $$
 
@@ -475,9 +475,9 @@ END $$
 DELIMITER ;
 
 
--- TRIGGER (regla de negocio)
--- Trigger que descuenta stock al registrar detalle de factura.
--- Se asegura que el inventario se mantenga actualizado automáticamente.
+-- TRIGGER 
+-- Trigger que valida que encargados correspondan a su departamento.
+-- Evita que en CodigoEncargadoSistemas se inserte un encargado que no pertenezca a SISTEMAS, y lo mismo para contabilidad.
 
 DELIMITER $$
 
